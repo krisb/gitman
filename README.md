@@ -26,6 +26,7 @@ $ gitman -h
     -v, --verbose               verbose output
 
   Commands:
+    init                        creates .gitmanrc in the current directory
     list                        list repositories by full name
     json                        outputs repositories in json format
     manage                      manages repositories, cloning and setting remotes as necessary
@@ -50,6 +51,7 @@ A sample configuration for this project might be:
   ]
 }
 ```
+
 ## Design Notes
 
 ### libgit2 vs exec
