@@ -7,6 +7,7 @@
 var Async = require('async');
 var Liftoff = require('liftoff');
 var Chalk = require('Chalk');
+var Joi = require('joi');
 
 var Fs = require('fs');
 var Cp = require('child_process');
@@ -19,6 +20,18 @@ var internals = {
     repos: []
   }
 };
+
+internals.schema = Joi.object({
+  repos: Joi.array().includes(Joi.object({
+    fullName: Joi.string().required(),
+    group: Joi.string(),
+    name: Joi.string(),
+    path: Joi.string().required(),
+    remotes: Joi.object({
+      origin: Joi.string().required()
+    }).required().options({allowUnknown: true})
+  }).required())
+});
 
 internals.log = function() {
   console.log.apply(this, arguments);
@@ -100,7 +113,7 @@ internals.fieldPatternFilter = function (field, pattern) {
 internals.initTask = function (callback) { // this === internals.config
   var fileName = '.gitmanrc';
   if (Fs.existsSync(fileName)) {
-    internals.log(Chalk.bold.blue('Found .gitmanrc in', process.cwd(), '- skipping'));
+    internals.log(Chalk.bold.blue('Found .gitmanrc at', process.cwd(), '- skipping'));
   } else {
     internals.log(Chalk.green('Initialised .gitmanrc in', process.cwd()));
     Fs.writeFileSync(fileName, JSON.stringify(this, null, 2));
@@ -213,6 +226,13 @@ internals.launcher = function (env) {
 
     process.chdir(env.configBase); // root and commands from the config location
     config = internals.config = JSON.parse(Fs.readFileSync(env.configPath));
+    var err = Joi.validate(config, internals.schema);
+    if (err) {
+      internals.log(Chalk.bold.red(env.configPath, 'invalid'));
+      internals.log(Chalk.bold.red(err.message));
+      internals.debug(JSON.stringify(err, null, 2));
+      process.exit(1);
+    }
   }
 
   if (options.pattern) {
