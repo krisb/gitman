@@ -1,0 +1,233 @@
+#!/usr/bin/env node
+
+// to install the modules needed run:
+//     npm install -g async liftoff chalk
+//     export NODE_PATH=/usr/local/lib/node_modules/
+
+var Async = require('async');
+var Liftoff = require('liftoff');
+var Chalk = require('Chalk');
+
+var Fs = require('fs');
+var Cp = require('child_process');
+
+// internals
+
+var internals = {
+  options: {},
+  config: {
+    repos: []
+  }
+};
+
+internals.log = function() {
+  console.log.apply(this, arguments);
+};
+
+internals.debug = function() {
+  if (internals.options.verbose) {
+    console.log.apply(this, arguments);
+  }
+};
+
+internals.sortBy = function(field) {
+  return function (a, b) {
+    if (a[field] < b[field]) {
+      return -1;
+    }
+    if (a[field] > b[field]) {
+      return 1;
+    }
+    return 0;
+  };
+};
+
+internals.exec = function(command, callback) {
+  internals.debug('exec: ' + command);
+  Cp.exec(command, function (error, stdout, stderr) {
+    internals.debug('stdout:' + stdout);
+    internals.debug('stderr:' + stderr);
+    internals.debug('error: ' + error);
+    callback(error, stdout, stderr);
+  });
+};
+
+
+internals.cli = new Liftoff({
+  name: 'gitman',
+  configName: '.gitman',
+  addExtensions: ['rc']
+});
+
+internals.cli.on('require', function (name, module) {
+  internals.log('Requiring external module', Chalk.magenta(name));
+  module.register();
+});
+
+internals.cli.on('requireFail', function (name, err) {
+  internals.log(Chalk.red('Failed to load external module'), Chalk.magenta(name));
+});
+
+internals.alias = function(options, orig, alias) {
+  options[orig] = options[orig] || options[alias];
+};
+
+internals.usage = function() {
+  internals.log('  git utility for managing multiple repositories');
+  internals.log();
+  internals.log(Chalk.bold('  Usage: gitman <options> <commands>'));
+  internals.log();
+  internals.log(Chalk.bold.blue('  Options:'));
+  internals.log('    -h, --help                  output usage information');
+  internals.log('    -p, --pattern <pattern>     pattern to match');
+  internals.log('    -v, --verbose               verbose output');
+  internals.log();
+  internals.log(Chalk.bold.blue('  Commands:'));
+  internals.log('    init                        creates .gitmanrc in the current directory');
+  internals.log('    list                        list repositories by full name');
+  internals.log('    json                        outputs repositories in json format');
+  internals.log('    manage                      manages repositories, cloning and setting remotes as necessary');
+  internals.log();
+};
+
+internals.fieldPatternFilter = function (field, pattern) {
+  var regex = new RegExp(pattern, "i");
+  return function(element) {
+    return element[field].match(regex);
+  };
+};
+
+internals.initTask = function (callback) { // this === internals.config
+  var fileName = '.gitmanrc';
+  if (Fs.existsSync(fileName)) {
+    internals.log(Chalk.bold.blue('Found .gitmanrc in', process.cwd(), '- skipping'));
+  } else {
+    internals.log(Chalk.green('Initialised .gitmanrc in', process.cwd()));
+    Fs.writeFileSync(fileName, JSON.stringify(this, null, 2));
+  }
+  callback();
+};
+
+internals.jsonTask = function (callback) { // this === internals.config
+  internals.log(JSON.stringify(this, null, 2));
+  callback();
+};
+
+internals.listTask = function (next) { // this === internals.config
+  for (var i = 0, il = this.repos.length; i < il; ++i) {
+    var repo = this.repos[i];
+    internals.log(Chalk.yellow(repo.fullName));
+  }
+  next();
+};
+
+internals.manageTask = function (next) { // this === internals.config
+
+  var logRepo = function (repo) {
+    return function (callback) {
+      internals.log(Chalk.yellow(repo.fullName), Chalk.white('[manage]'));
+      callback(null, true);
+    };
+  };
+
+  var cloneRepo = function (repo) {
+    return function (callback) {
+      if (Fs.existsSync(repo.path)) {
+        internals.log(Chalk.yellow(repo.fullName), Chalk.bold.blue('[clone]'), repo.remotes.origin + ' to ' + repo.path);
+        callback(null, true);
+      } else {
+        internals.log(Chalk.yellow(repo.fullName), Chalk.green('[clone]'), repo.remotes.origin + ' to ' + repo.path);
+        Cp.exec('git clone ' + repo.remotes.origin  + ' ' + repo.path, callback);
+      }
+    };
+  };
+
+  var addRemotes = function (repo) {
+    return function (callback) {
+      Async.eachSeries(Object.keys(repo.remotes), function (name, callback) {
+        var url = repo.remotes[name];
+        internals.exec('cd ' + repo.path + ' && git remote | grep ' + name, function (error, stdout, stderr) {
+          if (stdout.trim() === name) {
+            internals.log(Chalk.yellow(repo.fullName), Chalk.bold.blue('[remote add]'), name + ' to ' + url);
+            callback(null, true);
+          } else {
+            internals.log(Chalk.yellow(repo.fullName), Chalk.green('[remote add]'), name + ' to ' + url);
+            internals.exec('cd ' + repo.path + ' && git remote add ' + name + ' ' + url, callback);
+          }
+        });
+      }, callback);
+    };
+  };
+
+  Async.eachSeries(this.repos, function (repo, callback) {
+    Async.series([
+      logRepo(repo),
+      cloneRepo(repo),
+      addRemotes(repo)
+    ], callback);
+  }, next);
+};
+
+
+internals.launcher = function (env) {
+  var options = internals.options = env.argv;
+  internals.alias(options, 'verbose', 'v');
+  internals.alias(options, 'help', 'h');
+  internals.alias(options, 'pattern', 'p');
+
+  internals.debug('LIFTOFF SETTINGS:', this);
+  internals.debug('ARGV:', env.argv);
+  internals.debug('CWD:', env.cwd);
+  internals.debug('EXTENSIONS RECOGNIZED:', env.validExtensions);
+  internals.debug('SEARCHING FOR:', env.configNameRegex);
+  internals.debug('FOUND CONFIG AT:',  env.configPath);
+  internals.debug('CONFIG BASE DIR:', env.configBase);
+
+  var tasks = options._;
+
+  if (options.help || tasks.length === 0 || tasks.length > 1) {
+    internals.usage();
+    process.exit(0);
+  }
+
+  var taskFns = [];
+  for (var i = 0, il = tasks.length; i < il; ++i) {
+    var taskFn = internals[tasks[i] + 'Task'];
+    if (typeof taskFn === 'function') {
+      taskFns.push(taskFn);
+    } else {
+      internals.log(Chalk.bold.red('Unknown task: ' + tasks[i]));
+      internals.usage();
+      process.exit(1);
+    }
+  }
+
+  var config = internals.config;
+
+  // don't load from filesystem if init task mentioned
+  if (tasks.indexOf('init') === -1) {
+    if(!env.configPath) {
+      internals.log(Chalk.bold.red('No .gitmanrc found.'));
+      process.exit(1);
+    }
+
+    process.chdir(env.configBase); // root and commands from the config location
+    config = internals.config = JSON.parse(Fs.readFileSync(env.configPath));
+  }
+
+  if (options.pattern) {
+    config.repos = config.repos.filter(internals.fieldPatternFilter('fullName', options.pattern));
+  }
+  config.repos.sort(internals.sortBy('fullName'));
+
+  Async.eachSeries(taskFns, function(taskFn, next) {
+    taskFn.call(config, next);
+  }, function (err) {
+    if( err ) {
+      internals.log(Chalk.bold.red('Failed'));
+      internals.log(err);
+    }
+  });
+};
+
+internals.cli.launch(internals.launcher);

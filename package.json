@@ -1,0 +1,34 @@
+{
+  "name": "gitman",
+  "description": "git utility for managing multiple repositories",
+  "homepage": "https://github.com/krisb/gitman",
+  "version": "0.1.0",
+  "main": "index",
+  "engines": {
+    "node": ">=0.10.x"
+  },
+  "dependencies": {
+    "async": "^0.7.0",
+    "chalk": "^0.4.0",
+    "liftoff": "^0.9.8"
+  },
+  "devDependencies": {},
+  "bin": {
+    "gitman": "./bin/gitman"
+  },
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/krisb/gitman"
+  },
+  "keywords": [
+    "git"
+  ],
+  "author": "Kris Brown <kris@kris.me.uk>",
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://github.com/krisb/gitman/raw/master/LICENSE"
+    }
+  ]
+}
