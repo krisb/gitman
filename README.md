@@ -32,7 +32,7 @@ $ gitman -h
     manage                      manages repositories, cloning and setting remotes as necessary
 ```
 
-gitman traverse up from the current working directory till it finds a `.gitmanrc` file containing configuration in JSON.
+gitman traverses up from the current working directory till it finds a `.gitmanrc` file containing configuration in JSON.
 
 A sample configuration for this project might be:
 
