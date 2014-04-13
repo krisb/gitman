@@ -43,7 +43,7 @@ A sample configuration for this project might be:
       "fullName": "krisb/gitman",
       "group": "krisb",
       "name": "gitman",
-      "path": "krisb/gitman",
+      "path": "dev/krisb/gitman",
       "remotes": {
         "origin": "git@github.com:krisb/gitman.git"
       }
