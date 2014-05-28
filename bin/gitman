@@ -11,6 +11,7 @@ var Joi = require('joi');
 
 var Fs = require('fs');
 var Cp = require('child_process');
+var Os = require('os');
 
 // internals
 
@@ -106,6 +107,7 @@ internals.usage = function() {
   internals.log('    init                        creates .gitmanrc in the current directory');
   internals.log('    list                        list repositories by full name');
   internals.log('    json                        outputs repositories in json format');
+  internals.log('    format                      reformats the .gitmanrc file');
   internals.log('    manage                      manages repositories, cloning and setting remotes as necessary');
   internals.log();
 };
@@ -123,13 +125,19 @@ internals.initTask = function (callback) { // this === internals.config
     internals.log(Chalk.bold.blue('Found .gitmanrc at', process.cwd(), '- skipping'));
   } else {
     internals.log(Chalk.green('Initialised .gitmanrc in', process.cwd()));
-    Fs.writeFileSync(fileName, JSON.stringify(this, null, 2));
+    Fs.writeFileSync(fileName, JSON.stringify(this, null, 2) + Os.EOL);
   }
   callback();
 };
 
 internals.jsonTask = function (callback) { // this === internals.config
   internals.log(JSON.stringify(this, null, 2));
+  callback();
+};
+
+internals.formatTask = function (callback) { // this === internals.config
+  internals.log(Chalk.green('formatted .gitmanrc in', process.cwd()));
+  Fs.writeFileSync(internals.env.configPath, JSON.stringify(this, null, 2) + Os.EOL);
   callback();
 };
 
@@ -190,6 +198,7 @@ internals.manageTask = function (next) { // this === internals.config
 
 
 internals.launcher = function (env) {
+  internals.env = env;
   var options = internals.options = env.argv;
   internals.alias(options, 'trace', 'x');
   internals.alias(options, 'verbose', 'v');
