@@ -2,7 +2,7 @@
   "name": "gitman",
   "description": "git utility for managing multiple repositories",
   "homepage": "https://github.com/krisb/gitman",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "index",
   "engines": {
     "node": ">=0.10.x"
