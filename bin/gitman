@@ -38,7 +38,13 @@ internals.log = function() {
 };
 
 internals.debug = function() {
-  if (internals.options.verbose) {
+  if (internals.options.verbose || internals.options.trace) {
+    console.log.apply(this, arguments);
+  }
+};
+
+internals.trace = function() {
+  if (internals.options.trace) {
     console.log.apply(this, arguments);
   }
 };
@@ -56,11 +62,11 @@ internals.sortBy = function(field) {
 };
 
 internals.exec = function(command, callback) {
-  internals.debug('exec: ' + command);
+  internals.trace('exec: ' + command);
   Cp.exec(command, function (error, stdout, stderr) {
-    internals.debug('stdout:' + stdout);
-    internals.debug('stderr:' + stderr);
-    internals.debug('error: ' + error);
+    internals.trace('stdout:' + stdout);
+    internals.trace('stderr:' + stderr);
+    internals.trace('error: ' + error);
     callback(error, stdout, stderr);
   });
 };
@@ -94,6 +100,7 @@ internals.usage = function() {
   internals.log('    -h, --help                  output usage information');
   internals.log('    -p, --pattern <pattern>     pattern to match');
   internals.log('    -v, --verbose               verbose output');
+  internals.log('    -x, --trace                 trace output');
   internals.log();
   internals.log(Chalk.bold.blue('  Commands:'));
   internals.log('    init                        creates .gitmanrc in the current directory');
@@ -184,17 +191,18 @@ internals.manageTask = function (next) { // this === internals.config
 
 internals.launcher = function (env) {
   var options = internals.options = env.argv;
+  internals.alias(options, 'trace', 'x');
   internals.alias(options, 'verbose', 'v');
   internals.alias(options, 'help', 'h');
   internals.alias(options, 'pattern', 'p');
 
-  internals.debug('LIFTOFF SETTINGS:', this);
-  internals.debug('ARGV:', env.argv);
-  internals.debug('CWD:', env.cwd);
-  internals.debug('EXTENSIONS RECOGNIZED:', env.validExtensions);
-  internals.debug('SEARCHING FOR:', env.configNameRegex);
-  internals.debug('FOUND CONFIG AT:',  env.configPath);
-  internals.debug('CONFIG BASE DIR:', env.configBase);
+  internals.trace('LIFTOFF SETTINGS:', this);
+  internals.trace('ARGV:', env.argv);
+  internals.trace('CWD:', env.cwd);
+  internals.trace('EXTENSIONS RECOGNIZED:', env.validExtensions);
+  internals.trace('SEARCHING FOR:', env.configNameRegex);
+  internals.trace('FOUND CONFIG AT:',  env.configPath);
+  internals.trace('CONFIG BASE DIR:', env.configBase);
 
   var tasks = options._;
 
@@ -230,7 +238,7 @@ internals.launcher = function (env) {
     if (err) {
       internals.log(Chalk.bold.red(env.configPath, 'invalid'));
       internals.log(Chalk.bold.red(err.message));
-      internals.debug(JSON.stringify(err, null, 2));
+      internals.trace(JSON.stringify(err, null, 2));
       process.exit(1);
     }
   }
